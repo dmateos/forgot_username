@@ -1,0 +1,61 @@
+<?
+
+function forgot_username_menu() {
+	$items['user/username'] = array(
+		'title'            => 'Forgot your Username?',
+		'page callback'    => 'drupal_get_form',
+		'page arguments'   => array('forgot_username_form'),
+		'access arguments' => array('access content'),
+		'description'      => 'Allows a user to submit their email to receive their username',
+		'type' => MENU_LOCAL_TASK,
+	);
+	return $items;
+}
+
+function forgot_username_form() {
+	$form['email_address'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Your email'),
+		'#description' => t("Your username will be sent to your email address"),
+	);
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => t('Request Username'),
+	);
+
+	$form['#submit'][] = 'forgot_username_form_submit';
+	return $form;
+}
+
+function forgot_username_form_validate($form, &$form_state) {
+	if(!valid_email_address($form_state['values']['email_address']))
+		form_set_error("email_address", "Inavlid email address");
+}
+
+function forgot_username_form_submit($form, &$form_state) {
+	$result = db_query("select name from {users} where mail = :mail", array(":mail" => $form_state['values']['email_address']))->fetchAssoc();
+	$user = $result;
+
+	if(!$user)
+		form_set_error('email_address', 'There is no account with that address');
+	else  {
+		$message = array(
+			'subject' => t('Your requested username'),
+			'body' => t('Your username is: '.$user['name']),
+		);
+
+		drupal_mail("forgot_username", 'notice', $form_state['values']['email_address'], language_default(), $message);
+		drupal_set_message('We have sent your username to your email');
+	}
+}
+
+function forgot_username_mail($key, &$message, $params) {
+	switch($key) {
+		case 'notice':
+			$message['subject'] = $params['subject'];
+			$message['body'][] = $params['body'];
+			break;
+	}
+}
+
+?>
